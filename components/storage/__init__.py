@@ -3,6 +3,9 @@ import esphome.config_validation as cv
 from esphome.const import CONF_ID
 from esphome.cpp_generator import MockObjClass
 
+
+CODEOWNERS = ["@youkorr"]
+
 storage_ns = cg.esphome_ns.namespace("storage")
 Storage = storage_ns.class_("Storage", cg.EntityBase)
 StorageClient = storage_ns.class_("StorageClient", cg.EntityBase)
