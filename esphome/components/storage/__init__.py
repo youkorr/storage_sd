@@ -1,6 +1,6 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.const import CONF_ID, CONF_PLATFORM
+from esphome.const import CONF_ID
 
 DEPENDENCIES = ["esp32"]
 
@@ -11,29 +11,38 @@ SdMmcStorage = storage_ns.class_("SdMmcStorage", Storage)
 
 MULTI_CONF = True
 
-# Platform-specific configurations
-PLATFORM_SCHEMA = cv.platformio_ns.one_of("sd_mmc")
+# Define the platform schemas
+PLATFORM_SCHEMAS = {
+    "sd_mmc": cv.Schema(
+        {
+            cv.GenerateID(): cv.declare_id(SdMmcStorage),
+            cv.Required("path_prefix"): cv.string,
+            cv.Required("sd_mmc_id"): cv.use_id(cg.Component),
+        }
+    ).extend(cv.COMPONENT_SCHEMA),
+}
+
+def validate_platform(config):
+    if "platform" not in config:
+        raise cv.Invalid("Platform must be specified")
+    
+    platform = config["platform"]
+    if platform not in PLATFORM_SCHEMAS:
+        raise cv.Invalid(f"Unknown platform '{platform}'")
+    
+    return PLATFORM_SCHEMAS[platform](config)
 
 CONFIG_SCHEMA = cv.All(
     cv.ensure_list,
-    [
-        cv.Schema(
-            {
-                cv.Required(CONF_PLATFORM): PLATFORM_SCHEMA,
-                cv.GenerateID(): cv.declare_id(Storage),
-                cv.Required("path_prefix"): cv.string,
-                cv.Required("sd_mmc_id"): cv.use_id(cg.Component),
-            }
-        ).extend(cv.COMPONENT_SCHEMA)
-    ],
+    [validate_platform]
 )
 
 async def to_code(config):
     for conf in config:
-        platform = conf[CONF_PLATFORM]
+        platform = conf["platform"]
         
         if platform == "sd_mmc":
-            var = cg.new_Pvariable(conf[CONF_ID], SdMmcStorage)
+            var = cg.new_Pvariable(conf[CONF_ID])
             await cg.register_component(var, conf)
             
             # Set path prefix
