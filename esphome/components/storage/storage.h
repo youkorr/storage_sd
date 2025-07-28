@@ -2,7 +2,6 @@
 
 #include "esphome/core/component.h"
 #include "esphome/core/entity_base.h"
-#include "../sd_mmc_card/sd_mmc_card.h"
 #include <vector>
 #include <map>
 
