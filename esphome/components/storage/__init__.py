@@ -11,29 +11,34 @@ SdMmcStorage = storage_ns.class_("SdMmcStorage", Storage)
 
 MULTI_CONF = True
 
-# Schema for sd_mmc platform
-PLATFORM_SCHEMA = cv.Schema(
-    {
-        cv.GenerateID(): cv.declare_id(SdMmcStorage),
-        cv.Required("path_prefix"): cv.string,
-        cv.Required("sd_mmc_id"): cv.use_id(cg.Component),
-    }
-).extend(cv.COMPONENT_SCHEMA)
+# Platform-specific configurations
+PLATFORM_SCHEMA = cv.platformio_ns.one_of("sd_mmc")
 
-# Main config schema with platform selection
-CONFIG_SCHEMA = cv.typed_schema(
-    {
-        "sd_mmc": PLATFORM_SCHEMA,
-    }
+CONFIG_SCHEMA = cv.All(
+    cv.ensure_list,
+    [
+        cv.Schema(
+            {
+                cv.Required(CONF_PLATFORM): PLATFORM_SCHEMA,
+                cv.GenerateID(): cv.declare_id(Storage),
+                cv.Required("path_prefix"): cv.string,
+                cv.Required("sd_mmc_id"): cv.use_id(cg.Component),
+            }
+        ).extend(cv.COMPONENT_SCHEMA)
+    ],
 )
 
 async def to_code(config):
-    var = cg.new_Pvariable(config[CONF_ID])
-    await cg.register_component(var, config)
-    
-    # Set path prefix
-    cg.add(var.set_path_prefix(config["path_prefix"]))
-    
-    # Get SD MMC component reference
-    sd_mmc_component = await cg.get_variable(config["sd_mmc_id"])
-    cg.add(var.set_sd_mmc_component(sd_mmc_component))
+    for conf in config:
+        platform = conf[CONF_PLATFORM]
+        
+        if platform == "sd_mmc":
+            var = cg.new_Pvariable(conf[CONF_ID], SdMmcStorage)
+            await cg.register_component(var, conf)
+            
+            # Set path prefix
+            cg.add(var.set_path_prefix(conf["path_prefix"]))
+            
+            # Get SD MMC component reference
+            sd_mmc_component = await cg.get_variable(conf["sd_mmc_id"])
+            cg.add(var.set_sd_mmc_component(sd_mmc_component))
