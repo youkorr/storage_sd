@@ -1,36 +1,39 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.const import CONF_ID
-from esphome.cpp_generator import MockObjClass
+from esphome.const import CONF_ID, CONF_PLATFORM
 
+DEPENDENCIES = ["esp32"]
+
+# Define the storage namespace
 storage_ns = cg.esphome_ns.namespace("storage")
-Storage = storage_ns.class_("Storage", cg.EntityBase)
-StorageClient = storage_ns.class_("StorageClient", cg.EntityBase)
-StorageClientStatic = storage_ns.namespace("StorageClient")
+Storage = storage_ns.class_("Storage", cg.Component)
+SdMmcStorage = storage_ns.class_("SdMmcStorage", Storage)
 
-IS_PLATFORM_COMPONENT = True
+MULTI_CONF = True
 
-CONF_PREFIX = "path_prefix"
+# Schema for sd_mmc platform
+PLATFORM_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.declare_id(SdMmcStorage),
+        cv.Required("path_prefix"): cv.string,
+        cv.Required("sd_mmc_id"): cv.use_id(cg.Component),
+    }
+).extend(cv.COMPONENT_SCHEMA)
 
-
-STORAGE_SCHEMA = cv.Schema(
-    {cv.GenerateID(): cv.declare_id(Storage), cv.Required(CONF_PREFIX): cv.string}
+# Main config schema with platform selection
+CONFIG_SCHEMA = cv.typed_schema(
+    {
+        "sd_mmc": PLATFORM_SCHEMA,
+    }
 )
 
-
-def storage_schema(
-    class_: MockObjClass = cv.UNDEFINED,
-) -> cv.Schema:
-    schema = {}
-
-    if class_ is not cv.UNDEFINED:
-        # Not cv.optional
-        schema[cv.GenerateID()] = cv.declare_id(class_)
-
-    return STORAGE_SCHEMA.extend(schema)
-
-
-async def storage_to_code(config):
-    storage = await cg.get_variable(config[CONF_ID])
-    prefix = config[CONF_PREFIX]
-    cg.add(StorageClientStatic.add_storage(storage, prefix))
+async def to_code(config):
+    var = cg.new_Pvariable(config[CONF_ID])
+    await cg.register_component(var, config)
+    
+    # Set path prefix
+    cg.add(var.set_path_prefix(config["path_prefix"]))
+    
+    # Get SD MMC component reference
+    sd_mmc_component = await cg.get_variable(config["sd_mmc_id"])
+    cg.add(var.set_sd_mmc_component(sd_mmc_component))
